@@ -1,0 +1,375 @@
+<style type="text/css">
+	#canvas-holder{
+		width: 100%;
+		height: 100%;
+	}
+
+	#rectangle{
+		width: 200px;
+		height: 200px;
+		background: blue;
+		position: absolute;
+	}
+
+	#free-transform{
+		width: 20px;
+		height: 20px;
+		border:solid 1px #b1b1b1;
+		position: absolute;
+		cursor: move;
+		z-index: 1000;
+		margin-left: -1px;
+    	margin-top: -1;
+	}
+
+	#free-transform-placeholder{
+		width: 20px;
+		height: 20px;
+		border:dashed 1px #b1b1b1;
+		position: absolute;
+		cursor: move;
+		margin-left: -1px;
+    	margin-top: -1;
+    	z-index: 1001;
+	}
+
+	.ft-control{
+		background: #fff;
+		width: 5px;
+		height: 5px;
+		position: absolute;
+		border:solid 1px #b1b1b1;
+		z-index: 10;
+	}
+
+	.control-left-top{
+		left: 0px;
+		top: 0px;
+		margin-left: -4px;
+		margin-top: -4px;
+		cursor: nw-resize;
+	}
+
+	.control-center-top{
+		left: 50%;
+		top: 0px;
+		margin-left: -4px;
+		margin-top: -4px;
+		cursor: n-resize;
+	}
+
+	.control-right-top{
+		right: 0px;
+		top: 0px;
+		margin-right: -4px;
+		margin-top: -4px;
+		cursor: ne-resize;
+	}
+
+	.control-left-center{
+		left: 0px;
+		top: 50%;
+		margin-left: -4px;
+		margin-top: -4px;
+		cursor: w-resize;
+	}
+
+	.control-center-center{
+		left: 50%;
+		top: 50%;
+		margin-left: -4px;
+		margin-top: -4px;
+		border-radius: 50%;
+		background: transparent;
+	}
+
+	.control-right-center{
+		right: 0px;
+		top: 50%;
+		margin-right: -4px;
+		margin-top: -4px;
+		cursor: e-resize;
+	}
+
+	.control-left-bottom{
+		left: 0px;
+		bottom: 0;
+		margin-left: -4px;
+		margin-bottom: -4px;
+		cursor: sw-resize;
+	}
+
+	.control-center-bottom{
+		left: 50%;
+		bottom: 0;
+		margin-left: -4px;
+		margin-bottom: -4px;
+		cursor: s-resize;
+	}
+
+	.control-right-bottom{
+		right: 0px;
+		bottom: 0;
+		margin-right: -4px;
+		margin-bottom: -4px;
+		cursor: se-resize;
+	}
+
+	.ft-vertical-line{
+		height: 11px;
+		width: 1px;
+		border-left: solid 1px #b1b1b1;
+		position: absolute;
+		margin-top: -3px;
+		margin-left: 2px;
+	}
+
+	.ft-horizontal-line{
+		width: 11px;
+		height: 1px;
+		border-top: solid 1px #b1b1b1;
+		position: absolute;
+		margin-top: 2px;
+		margin-left: -3px;
+	}
+
+	#free-transform-vertical-line{
+		height:100%;
+		position: absolute;
+		width: 1px;
+		border-left: solid 1px blue;
+		z-index: 1002;
+		display: none;
+		transform-origin: center center;
+		transform: translate(-50%, -50%);
+	}
+
+	#free-transform-horizontal-line{
+		height: 1px;
+		position: absolute;
+		width: 100%;
+		border-top: solid 1px blue;
+		z-index: 1002;
+		display: none;
+		transform-origin: center center;
+		transform: translate(-50%, -50%);
+	}
+</style>
+
+<div id="canvas-holder">
+	<div id="canvas">
+		<div id="free-transform-vertical-line"></div>
+		<div id="free-transform-horizontal-line"></div>
+
+		<div id="free-transform-placeholder"></div>
+		<div id="free-transform" action="translate" class="control-translate">
+			<div action="scale-left-top" class="ft-control control-left-top"></div>	
+			<div action="scale-center-top" class="ft-control control-center-top"></div>	
+			<div action="scale-right-top" class="ft-control control-right-top"></div>
+
+			<div class="ft-control control-left-center"></div>	
+			<div class="ft-control control-center-center">
+				<span class="ft-vertical-line"></span>
+				<span class="ft-horizontal-line"></span>
+			</div>	
+			<div class="ft-control control-right-center"></div>	
+
+			<div class="ft-control control-left-bottom"></div>	
+			<div class="ft-control control-center-bottom"></div>	
+			<div class="ft-control control-right-bottom"></div>	
+		</div>
+
+		<div id="rectangle"></div>
+	</div>
+</div>
+<script type="text/javascript">
+	var transform = {
+		element : null,
+		tool : null,
+		placeholder : null,
+		container : {
+			x : 0,
+			y : 0,
+			width  : 0,
+			height : 0,
+			rotation : 0
+		},
+		updatedProperties : {
+			x : 0,
+			y : 0 ,
+			width : 0,
+			height : 0,
+			rotation : 0,
+		},
+		mouse : {
+			x : 0,
+			y : 0,
+			startX : 0,
+			startY : 0,
+			down : false
+		},
+		lines : {
+			vertical : false,
+			horizontal : false,
+			dom : {
+				vertical : null,
+				horizontal : null,
+			}
+		},
+		keyboard : {
+			shift : false,
+			ctrl : false
+		},
+		action : false,
+		init : function(){
+			this.tool = document.getElementById('free-transform');
+			this.placeholder = document.getElementById('free-transform-placeholder');
+
+			this.lines.dom.vertical   = document.getElementById('free-transform-vertical-line');
+			this.lines.dom.horizontal = document.getElementById('free-transform-horizontal-line');
+
+			//Define listeners
+			window.addEventListener('mousedown', this.mousedown, true);
+			window.addEventListener('mousemove', this.mousemove, true);
+			window.addEventListener('mouseup',   this.mouseup, true);
+			window.addEventListener('keydown',   this.keydown, true);
+			window.addEventListener('keyup',     this.keyup, true);
+
+			window.onmousedown = function(event){
+				if(event.target.getAttribute('action')){
+					transform.action = event.target.getAttribute('action');
+				}
+			}
+
+			window.onmouseup = function(event){
+				transform.action = false;
+			}
+
+			setInterval(function(){
+				transform.update();
+			}, 1);
+		},
+		select : function(element){
+			this.element = element;
+		},
+		keydown : function(event){
+			console.log(event);
+			if(event.key == 'Shift'){
+				transform.keyboard.shift = true;
+			}
+		},
+		keyup : function(event){
+			if(event.key == 'Shift'){
+				transform.keyboard.shift = false;
+			}
+		},
+		mousedown : function(event){
+			transform.mouse.down = true;
+			transform.mouse.x    = event.clientX;
+			transform.mouse.y    = event.clientY;
+
+			transform.mouse.startX = event.clientX;
+			transform.mouse.startY = event.clientY;
+		},
+		mousemove : function(event){
+			transform.mouse.x    = event.clientX;
+			transform.mouse.y    = event.clientY;
+		},
+		mouseup : function(event){
+			transform.mouse.down = false;
+			transform.mouse.x    = event.clientX;
+			transform.mouse.y    = event.clientY;
+
+			transform.applyAction();
+		},
+		applyAction : function(){
+			this.element.style.left = this.updatedProperties.x;
+			this.element.style.top  = this.updatedProperties.y;
+		},
+		processAction : function(action){
+			if(action){
+				var applyChanges = true;
+			}else{
+				var applyChanges = false;
+			}
+
+			if(action == 'translate'){
+
+				var directionX = false;
+				var directionY = false;
+
+				//One direction keyboard
+				if(this.keyboard.shift){
+					if(Math.abs(this.mouse.x - this.mouse.startX) > Math.abs(this.mouse.y - this.mouse.startY)){
+						directionX = true;
+						this.lines.horizontal = true;
+					}else{
+						directionY = true;
+						this.lines.vertical = true;
+					}
+				}else{
+					directionX = true;
+					directionY = true;
+				}
+
+				if(directionX){
+					var deltaX = this.mouse.x - this.mouse.startX;
+					this.updatedProperties.x = this.container.x + deltaX;
+				}
+
+				if(directionY){
+					var deltaY = this.mouse.y - this.mouse.startY;
+					this.updatedProperties.y = this.container.y + deltaY;
+				}
+			}else if(action == 'scale-center-top'){
+				var deltaY = this.mouse.y - this.mouse.startY;
+
+				this.updatedProperties.height = this.container.height + deltaY;
+			}
+
+			if(applyChanges){
+				this.placeholder.style.left = this.updatedProperties.x;
+				this.placeholder.style.top  = this.updatedProperties.y;
+				this.placeholder.style.width  = this.container.width;
+				this.placeholder.style.height = this.container.height;
+				this.placeholder.style.display = 'block';
+			}else{
+				this.placeholder.style.display = 'none';
+			}
+		},
+		update : function(){
+			this.lines.horizontal = false;
+			this.lines.vertical   = false;
+
+			if(this.element){
+				var bounds = this.element.getBoundingClientRect();
+
+				this.container.x = bounds.x;
+				this.container.y = bounds.y;
+				this.container.width  = bounds.width;
+				this.container.height = bounds.height;
+
+				this.tool.style.width  = this.container.width;
+				this.tool.style.height = this.container.height;
+
+				this.tool.style.left = this.container.x;
+				this.tool.style.top  = this.container.y;
+
+				this.processAction(this.action);
+			}
+
+			this.lines.dom.horizontal.style.left = this.container.x;
+			this.lines.dom.horizontal.style.top  = this.container.y;
+			this.lines.dom.horizontal.style.display = this.lines.horizontal ? 'block' : 'none';
+
+			this.lines.dom.vertical.style.left = this.container.x;
+			this.lines.dom.vertical.style.top  = this.container.y;
+			this.lines.dom.vertical.style.display = this.lines.vertical ? 'block' : 'none';
+		}
+	};
+
+	window.onload = function(){
+		transform.init();
+		transform.select(document.getElementById('rectangle'));
+	}
+</script>
