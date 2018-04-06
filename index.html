@@ -11,6 +11,24 @@
 		position: absolute;
 	}
 
+	#rectangle2{
+		width: 300px;
+		height: 150px;
+		background: red;
+		position: absolute;
+		top: 400px;
+		left: 200px;
+	}
+
+	#rectangle3{
+		width: 300px;
+		height: 20px;
+		background: green;
+		position: absolute;
+		top: 10px;
+		left: 300px;
+	}
+
 	#free-transform{
 		width: 20px;
 		height: 20px;
@@ -25,12 +43,12 @@
 	#free-transform-placeholder{
 		width: 20px;
 		height: 20px;
-		border:dashed 1px #b1b1b1;
+		border:dashed 1px #ccc;
 		position: absolute;
 		cursor: move;
 		margin-left: -1px;
     	margin-top: -1;
-    	z-index: 1001;
+    	z-index: 1005;
 	}
 
 	.ft-control{
@@ -163,23 +181,25 @@
 
 		<div id="free-transform-placeholder"></div>
 		<div id="free-transform" action="translate" class="control-translate">
-			<div action="scale-left-top" class="ft-control control-left-top"></div>	
-			<div action="scale-center-top" class="ft-control control-center-top"></div>	
-			<div action="scale-right-top" class="ft-control control-right-top"></div>
+			<div action="scale-left-top" opposite-action="scale-right-bottom" class="ft-control control-left-top"></div>	
+			<div action="scale-center-top" opposite-action="scale-center-bottom" class="ft-control control-center-top"></div>	
+			<div action="scale-right-top" opposite-action="scale-left-bottom" class="ft-control control-right-top"></div>
 
-			<div class="ft-control control-left-center"></div>	
+			<div action="scale-left-center" class="ft-control control-left-center"></div>	
 			<div class="ft-control control-center-center">
 				<span class="ft-vertical-line"></span>
 				<span class="ft-horizontal-line"></span>
 			</div>	
-			<div class="ft-control control-right-center"></div>	
+			<div action="scale-right-center" class="ft-control control-right-center"></div>	
 
-			<div class="ft-control control-left-bottom"></div>	
-			<div class="ft-control control-center-bottom"></div>	
-			<div class="ft-control control-right-bottom"></div>	
+			<div action="scale-left-bottom" class="ft-control control-left-bottom"></div>	
+			<div action="scale-center-bottom" class="ft-control control-center-bottom"></div>	
+			<div action="scale-left-bottom" class="ft-control control-right-bottom"></div>	
 		</div>
 
 		<div id="rectangle"></div>
+		<div id="rectangle2" class="transformable-object"></div>
+		<div id="rectangle3" class="transformable-object"></div>
 	</div>
 </div>
 <script type="text/javascript">
@@ -201,6 +221,14 @@
 			height : 0,
 			rotation : 0,
 		},
+		stickProperties : {
+			x : 0,
+			y : 0 ,
+			width : 0,
+			height : 0,
+			rotation : 0,
+			active : false,
+		},
 		mouse : {
 			x : 0,
 			y : 0,
@@ -220,7 +248,11 @@
 			shift : false,
 			ctrl : false
 		},
+		thresholds : {
+			near : 15
+		},
 		action : false,
+		opposite_action : false,
 		init : function(){
 			this.tool = document.getElementById('free-transform');
 			this.placeholder = document.getElementById('free-transform-placeholder');
@@ -238,11 +270,13 @@
 			window.onmousedown = function(event){
 				if(event.target.getAttribute('action')){
 					transform.action = event.target.getAttribute('action');
+					transform.opposite_action = event.target.getAttribute('opposite-action');
 				}
 			}
 
 			window.onmouseup = function(event){
 				transform.action = false;
+				transform.opposite_action = false;
 			}
 
 			setInterval(function(){
@@ -270,6 +304,8 @@
 
 			transform.mouse.startX = event.clientX;
 			transform.mouse.startY = event.clientY;
+
+			transform.getProperties();
 		},
 		mousemove : function(event){
 			transform.mouse.x    = event.clientX;
@@ -280,11 +316,32 @@
 			transform.mouse.x    = event.clientX;
 			transform.mouse.y    = event.clientY;
 
-			transform.applyAction();
+			transform.setProperties();
 		},
-		applyAction : function(){
-			this.element.style.left = this.updatedProperties.x;
-			this.element.style.top  = this.updatedProperties.y;
+		getProperties : function(){
+			this.updatedProperties.x      = parseFloat(this.element.style.left);
+			this.updatedProperties.y      = parseFloat(this.element.style.top);
+			this.updatedProperties.width  = parseFloat(this.element.clientWidth);
+			this.updatedProperties.height = parseFloat(this.element.clientHeight);
+
+			this.stickProperties.x      = parseFloat(this.element.style.left);
+			this.stickProperties.y      = parseFloat(this.element.style.top);
+			this.stickProperties.width  = parseFloat(this.element.clientWidth);
+			this.stickProperties.height = parseFloat(this.element.clientHeight);
+		},
+		setProperties : function(){
+			if(this.stickProperties.active){
+				console.log(this.stickProperties.y);
+				this.element.style.left   = this.stickProperties.x;
+				this.element.style.top    = this.stickProperties.y;
+				this.element.style.width  = this.stickProperties.width;
+				this.element.style.height = this.stickProperties.height;
+			}else{
+				this.element.style.left   = this.updatedProperties.x;
+				this.element.style.top    = this.updatedProperties.y;
+				this.element.style.width  = this.updatedProperties.width;
+				this.element.style.height = this.updatedProperties.height;
+			}
 		},
 		processAction : function(action){
 			if(action){
@@ -292,6 +349,8 @@
 			}else{
 				var applyChanges = false;
 			}
+
+			var nearObject = this.findNearObject();
 
 			if(action == 'translate'){
 
@@ -303,9 +362,11 @@
 					if(Math.abs(this.mouse.x - this.mouse.startX) > Math.abs(this.mouse.y - this.mouse.startY)){
 						directionX = true;
 						this.lines.horizontal = true;
+						this.updatedProperties.x = this.mouse.startX;
 					}else{
 						directionY = true;
 						this.lines.vertical = true;
+						this.updatedProperties.y = this.mouse.startY;
 					}
 				}else{
 					directionX = true;
@@ -321,21 +382,147 @@
 					var deltaY = this.mouse.y - this.mouse.startY;
 					this.updatedProperties.y = this.container.y + deltaY;
 				}
-			}else if(action == 'scale-center-top'){
-				var deltaY = this.mouse.y - this.mouse.startY;
+			}
 
-				this.updatedProperties.height = this.container.height + deltaY;
+			if(action == 'scale-center-top'){
+				var deltaY = this.mouse.startY - this.mouse.y;
+
+				this.container.height = this.updatedProperties.height = this.container.height + deltaY;
+				this.updatedProperties.y = this.container.y - deltaY;
+			}
+
+			if(action == 'scale-center-bottom'){
+				var deltaY = this.mouse.startY - this.mouse.y;
+
+				this.container.height = this.updatedProperties.height = this.container.height - deltaY;
+			}
+
+			if(action == 'scale-left-center'){
+				var deltaX = this.mouse.startX - this.mouse.x;
+
+				this.container.width = this.updatedProperties.width = this.container.width + deltaX;
+				this.updatedProperties.x = this.container.x - deltaX;
+			}
+
+			if(action == 'scale-right-center'){
+				var deltaX = this.mouse.startX - this.mouse.x;
+
+				this.container.width = this.updatedProperties.width = this.container.width - deltaX;
 			}
 
 			if(applyChanges){
-				this.placeholder.style.left = this.updatedProperties.x;
-				this.placeholder.style.top  = this.updatedProperties.y;
-				this.placeholder.style.width  = this.container.width;
-				this.placeholder.style.height = this.container.height;
+				this.placeholder.style.left    = this.updatedProperties.x;
+				this.placeholder.style.top     = this.updatedProperties.y;
+				this.placeholder.style.width   = this.container.width;
+				this.placeholder.style.height  = this.container.height;
 				this.placeholder.style.display = 'block';
 			}else{
 				this.placeholder.style.display = 'none';
 			}
+
+			//Near object actions
+			this.stickProperties.active = false;
+
+			if(nearObject && transform.keyboard.shift){
+				if(action == 'translate'){
+					if(nearObject['bottom'] && !directionX && directionY){
+						this.stickProperties.active = true;
+						this.stickProperties.y = nearObject['bottom'].y - this.container.height;
+					}
+
+					if(nearObject['top'] && !directionX && directionY){
+						this.stickProperties.active = true;
+						this.stickProperties.y = nearObject['top'].y;
+					}
+
+					if(nearObject['right'] && directionX && !directionY){
+						this.stickProperties.active = true;
+						this.stickProperties.x = nearObject['right'].x - this.container.width;
+					}
+
+					if(nearObject['left'] && directionX && !directionY){
+						this.stickProperties.active = true;
+						this.stickProperties.x = nearObject['left'].x;
+					}
+				}
+
+				if(action == 'scale-center-bottom'){
+					if(nearObject['bottom']){
+						this.stickProperties.active = true;
+						this.stickProperties.height = nearObject['bottom'].y - this.container.y;
+					}
+				}
+
+				if(action == 'scale-center-top'){
+					if(nearObject['top']){
+						this.stickProperties.active = true;
+						this.stickProperties.height = (this.updatedProperties.y - nearObject['top'].y) + this.updatedProperties.height;
+						this.stickProperties.y = nearObject['top'].y;
+					}
+				}
+
+				if(action == 'scale-right-center'){
+					if(nearObject['right']){
+						this.stickProperties.active = true;
+						this.stickProperties.width = nearObject['right'].x - this.container.x;
+					}
+				}
+
+				if(action == 'scale-left-center'){
+					if(nearObject['left']){
+						this.stickProperties.active = true;
+						this.stickProperties.width = (this.updatedProperties.x - nearObject['left'].x) + this.updatedProperties.width;
+						this.stickProperties.x = nearObject['left'].x;
+					}
+				}
+
+				if(this.stickProperties.active){
+					this.placeholder.style.left = this.stickProperties.x;
+					this.placeholder.style.top  = this.stickProperties.y;
+
+					this.placeholder.style.width  = this.stickProperties.width;
+					this.placeholder.style.height = this.stickProperties.height;
+				}
+			}
+		},
+		findNearObject : function(){
+			var objects = document.querySelectorAll('.transformable-object');
+			var selectedObject = this.updatedProperties;
+			var output = {};
+
+			for(index in objects){
+				var object = objects[index];
+
+				if(object.getBoundingClientRect){
+					var bounds = object.getBoundingClientRect();
+
+					if(
+						Math.abs((selectedObject.y + selectedObject.height) - bounds.top) < this.thresholds.near
+					){
+						output['bottom'] = { y : bounds.top, edge : 'bottom', thresholds : Math.abs((selectedObject.y + selectedObject.height) - bounds.top) };
+					}
+
+					if(
+						Math.abs((selectedObject.y) - bounds.bottom) < this.thresholds.near
+					){
+						output['top'] = { y : bounds.bottom, edge : 'top', thresholds : Math.abs((selectedObject.y) - bounds.bottom) };
+					}
+
+					if(
+						Math.abs((selectedObject.x + selectedObject.width) - bounds.left) < this.thresholds.near
+					){
+						output['right'] = { x : bounds.left, edge : 'right', thresholds : Math.abs((selectedObject.x + selectedObject.width) - bounds.left) };
+					}
+
+					if(
+						Math.abs((selectedObject.x) - bounds.right) < this.thresholds.near
+					){
+						output['left'] = { x : bounds.right, edge : 'left', thresholds : Math.abs((selectedObject.x) - bounds.right) };
+					}
+				}
+			}
+
+			return output;
 		},
 		update : function(){
 			this.lines.horizontal = false;
@@ -352,8 +539,8 @@
 				this.tool.style.width  = this.container.width;
 				this.tool.style.height = this.container.height;
 
-				this.tool.style.left = this.container.x;
-				this.tool.style.top  = this.container.y;
+				this.tool.style.left   = document.body.scrollLeft + this.container.x;
+				this.tool.style.top    = document.body.scrollTop + this.container.y;
 
 				this.processAction(this.action);
 			}
