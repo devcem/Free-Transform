@@ -30,14 +30,15 @@
 	}
 
 	#free-transform{
-		width: 20px;
-		height: 20px;
+		width: 0px;
+		height: 0px;
 		border:solid 1px #b1b1b1;
 		position: absolute;
 		cursor: move;
 		z-index: 1000;
 		margin-left: -1px;
     	margin-top: -1;
+    	display: none;
 	}
 
 	#free-transform-placeholder{
@@ -49,6 +50,7 @@
 		margin-left: -1px;
     	margin-top: -1;
     	z-index: 1005;
+    	display: none;
 	}
 
 	.ft-control{
@@ -197,7 +199,7 @@
 			<div action="scale-left-bottom" class="ft-control control-right-bottom"></div>	
 		</div>
 
-		<div id="rectangle"></div>
+		<div id="rectangle" class="transformable-object">fsdfsd</div>
 		<div id="rectangle2" class="transformable-object"></div>
 		<div id="rectangle3" class="transformable-object"></div>
 	</div>
@@ -267,8 +269,18 @@
 			window.addEventListener('keydown',   this.keydown, true);
 			window.addEventListener('keyup',     this.keyup, true);
 
+			var elements = document.querySelectorAll('.transformable-object');
+
+			for(index in elements){
+				var element = elements[index];
+
+				element.onclick = function(){
+					transform.select(this);
+				}
+			}
+
 			window.onmousedown = function(event){
-				if(event.target.getAttribute('action')){
+				if(transform.element && event.target.getAttribute('action')){
 					transform.action = event.target.getAttribute('action');
 					transform.opposite_action = event.target.getAttribute('opposite-action');
 				}
@@ -285,9 +297,10 @@
 		},
 		select : function(element){
 			this.element = element;
+			this.tool.style.display = 'block';
+			this.placeholder.style.display = 'block';
 		},
 		keydown : function(event){
-			console.log(event);
 			if(event.key == 'Shift'){
 				transform.keyboard.shift = true;
 			}
@@ -319,6 +332,10 @@
 			transform.setProperties();
 		},
 		getProperties : function(){
+			if(!this.element){
+				return false;
+			}
+
 			this.updatedProperties.x      = parseFloat(this.element.style.left);
 			this.updatedProperties.y      = parseFloat(this.element.style.top);
 			this.updatedProperties.width  = parseFloat(this.element.clientWidth);
@@ -330,8 +347,11 @@
 			this.stickProperties.height = parseFloat(this.element.clientHeight);
 		},
 		setProperties : function(){
+			if(!this.element){
+				return false;
+			}
+
 			if(this.stickProperties.active){
-				console.log(this.stickProperties.y);
 				this.element.style.left   = this.stickProperties.x;
 				this.element.style.top    = this.stickProperties.y;
 				this.element.style.width  = this.stickProperties.width;
@@ -503,9 +523,21 @@
 					}
 
 					if(
+						Math.abs((selectedObject.y + selectedObject.height) - bounds.bottom) < this.thresholds.near
+					){
+						output['bottom'] = { y : bounds.bottom, edge : 'bottom', thresholds : Math.abs((selectedObject.y + selectedObject.height) - bounds.bottom) };
+					}
+
+					if(
 						Math.abs((selectedObject.y) - bounds.bottom) < this.thresholds.near
 					){
 						output['top'] = { y : bounds.bottom, edge : 'top', thresholds : Math.abs((selectedObject.y) - bounds.bottom) };
+					}
+
+					if(
+						Math.abs((selectedObject.y) - bounds.top) < this.thresholds.near
+					){
+						output['top'] = { y : bounds.top, edge : 'top', thresholds : Math.abs((selectedObject.y) - bounds.top) };
 					}
 
 					if(
@@ -515,9 +547,21 @@
 					}
 
 					if(
+						Math.abs((selectedObject.x + selectedObject.width) - bounds.right) < this.thresholds.near
+					){
+						output['right'] = { x : bounds.right, edge : 'right', thresholds : Math.abs((selectedObject.x + selectedObject.width) - bounds.right) };
+					}
+
+					if(
 						Math.abs((selectedObject.x) - bounds.right) < this.thresholds.near
 					){
 						output['left'] = { x : bounds.right, edge : 'left', thresholds : Math.abs((selectedObject.x) - bounds.right) };
+					}
+
+					if(
+						Math.abs((selectedObject.x) - bounds.left) < this.thresholds.near
+					){
+						output['left'] = { x : bounds.left, edge : 'left', thresholds : Math.abs((selectedObject.x) - bounds.left) };
 					}
 				}
 			}
@@ -557,6 +601,6 @@
 
 	window.onload = function(){
 		transform.init();
-		transform.select(document.getElementById('rectangle'));
+		//transform.select(document.getElementById('rectangle'));
 	}
 </script>
